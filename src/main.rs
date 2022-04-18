@@ -1,5 +1,6 @@
 use utils::timer::Timer;
 
+mod day1_not_quite_lisp;
 mod day2_area;
 mod day3_houses;
 mod day4_mining;
@@ -34,6 +35,7 @@ fn main() {
     };
     println!("running day {}\n", day);
     match day {
+        1 => day1_not_quite_lisp::run(),
         2 => day2_area::run(),
         3 => day3_houses::run(),
         4 => day4_mining::run(),
