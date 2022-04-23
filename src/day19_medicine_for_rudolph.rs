@@ -38,16 +38,8 @@ HOHOHO";
     let target = start;
     let start = Compound::electron();
 
-    let _options = AStarOptions {
-        print_debug: true,
-        print_current_val: true,
-        print_every: Some(100),
-    };
-    // let _options = AStarOptions {
-    //     print_debug: true,
-    //     print_current_val: true,
-    //     print_every: None
-    // };
+    let _options = AStarOptions::print_stats_and_values_every(100);
+    // let _options = AStarOptions::print_stats_and_values();
 
     let result = a_star_search(start, &target, |compound| get_successors(compound, &formulas), distance_function, Some(&_options)).expect("no solution found");
 
