@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
-use utils::a_star::{a_star_search, AStarNode, AStarOptions, CurrentNodeDetails, Successor};
+use utils::a_star::*;
 use lazy_static::lazy_static;
+use rand::Rng;
 
 pub(crate) fn run() {
     let _input = "H => HO
@@ -35,19 +36,115 @@ HOHOHO";
 
 
     formulas.extend(final_formulas);
-    let target = start;
-    let start = Compound::electron();
+    // let target = start;
+    // let start = Compound::electron();
+    let target = Compound::electron();
+    let start = start;
 
-    let _options = AStarOptions::print_stats_and_values_every(100);
+    let _options = AStarOptions::print_stats_and_values_every(10_000);
     // let _options = AStarOptions::print_stats_and_values();
 
-    let result = a_star_search(start, &target, |compound| get_successors(compound, &formulas), distance_function, Some(&_options)).expect("no solution found");
+    println!("target molecule: {:?}", target);
+    // let result = a_star_search(start, &target, |compound| get_successors_rev(compound, &formulas), distance_function_rev, Some(&_options)).expect("no solution found");
 
-    println!("{:?}", result);
+    let result = cheat(start, &target, &formulas, 0);
+
+    // println!("{:?}", result);
     println!("best path is length {}", result.len() - 1);
 }
 
+fn cheat(start: Compound, target: &Compound, formulas: &[Expression], times: usize) -> Vec<String> {
+    if times > 10_000 {
+        panic!("no solution found");
+    }
+    println!("starting round {}", times);
+    let mut rng = rand::thread_rng();
+    let mut result: Vec<String> = Default::default();
+    let mut formulas_vec: Vec<_> = formulas.into_iter()
+        .map(|e| (e, 0usize))
+        .collect();
+    let mut shuffle = |formulas: &mut Vec<(&Expression, usize)>| {
+        for (_, r) in formulas.iter_mut() {
+            *r = rng.gen();
+        }
+        formulas.sort_by(|(_, a), (_, b)| a.cmp(b));
+    };
+
+    let target_str = target.to_string();
+    let mut current = start.to_string();
+    result.push(current.clone());
+    for i in 0..10_000_000 {
+        shuffle(&mut formulas_vec);
+        if i > 0 && i % 100_000 == 0 {
+            println!("i={}, current={}", i, current);
+        }
+        if current == target_str {
+            return result;
+        }
+        let mut any_changes = false;
+        for (expression, _) in formulas_vec.iter() {
+            let to = expression.to.to_string();
+            if current.contains(&to) {
+                any_changes = true;
+                let count = current.matches(&to).count();
+                current = current.replace(&to, expression.from.0);
+                for _ in 0..count {
+                    result.push(current.clone());
+                }
+            }
+        }
+        if !any_changes {
+            return cheat(start, target, formulas, times + 1);
+        }
+    }
+
+    cheat(start, target, formulas, times + 1)
+}
+
 impl AStarNode for Compound {}
+
+static PRODUCTS: [&'static str; 40] = [
+    "ThF",
+    "ThRnFAr",
+    "BCa",
+    "TiB",
+    "TiRnFAr",
+    "CaCa",
+    "PB",
+    "PRnFAr",
+    "SiRnFYFAr",
+    "SiRnMgAr",
+    "SiTh",
+    "CaF",
+    "PMg",
+    "SiAl",
+    "CRnAlAr",
+    "CRnFYFYFAr",
+    "CRnFYMgAr",
+    "CRnMgYFAr",
+    "HCa",
+    "NRnFYFAr",
+    "NRnMgAr",
+    "NTh",
+    "OB",
+    "ORnFAr",
+    "BF",
+    "TiMg",
+    "CRnFAr",
+    "HSi",
+    "CRnFYFAr",
+    "CRnMgAr",
+    "HP",
+    "NRnFAr",
+    "OTi",
+    "CaP",
+    "PTi",
+    "SiRnFAr",
+    "CaSi",
+    "ThCa",
+    "BP",
+    "TiTi",
+];
 
 lazy_static! {
 #[allow(unused)]
@@ -74,9 +171,9 @@ fn try_get_successors_rev_optimized(compound: &Compound) -> Option<Compound> {
 
 #[allow(unused)]
 fn get_successors_rev(compound: &Compound, formulas: &[Expression]) -> Vec<Successor<Compound>> {
-    if let Some(next) = try_get_successors_rev_optimized(compound) {
-        return vec![Successor::new(next, 1)];
-    }
+    // if let Some(next) = try_get_successors_rev_optimized(compound) {
+    //     return vec![Successor::new(next, 1)];
+    // }
     formulas.iter().flat_map(|formula| {
         (0..compound.0.len())
             .filter(|&i| {
@@ -101,7 +198,7 @@ fn distance_function_rev(node_details: CurrentNodeDetails<Compound>) -> i32 {
         target_node: _right,
         cost_to_move_to_current: _to_current
     } = node_details;
-    let distance = if left.0.len() == 1 {
+    let mut distance = if left.0.len() == 1 {
         if *left == Compound::electron() {
             0
         } else {
@@ -111,9 +208,22 @@ fn distance_function_rev(node_details: CurrentNodeDetails<Compound>) -> i32 {
         left.0.len() as i32
     };
     // ((_to_current + distance.pow(2)) as f64).sqrt().floor() as i32
+
+    let mut s: String = left.0.iter().map(|e| e.0).collect();
+    for &product in PRODUCTS.iter() {
+        s = s.replace(product, "");
+    }
+    let tot_len = |c: &Compound| c.0.iter().map(|i| i.0.len()).sum::<usize>();
+    distance *= 5;
+    distance += (tot_len(left) as i32 - s.len() as i32);
+    // for &product in PRODUCTS.iter() {
+    //     non_matches += s.matches(product).count() as i32;
+    // }
+
     distance
 }
 
+#[allow(unused)]
 fn distance_function(node_details: CurrentNodeDetails<Compound>) -> i32 {
     let CurrentNodeDetails {
         current_node: left,
@@ -121,12 +231,13 @@ fn distance_function(node_details: CurrentNodeDetails<Compound>) -> i32 {
         cost_to_move_to_current: _to_current
     } = node_details;
     let mut non_matches = (left.0.len() as i32 - right.0.len() as i32).abs();
-    non_matches += (0..left.0.len().min(right.0.len()))
-        .filter(|&i| {
-            left.0[i] != right.0[i]
-        })
-        .count() as i32;
-    // non_matches *= 10;
+    // non_matches *= 2;
+    // non_matches += (0..left.0.len().min(right.0.len()))
+    //     .filter(|&i| {
+    //         left.0[i] != right.0[i]
+    //     })
+    //     .count() as i32;
+    // non_matches *= 2;
     // let equal_windows_count = right.0.windows(3).filter(|&right| {
     //     left.0.windows(3).any(|left| {
     //         left == right
@@ -136,6 +247,7 @@ fn distance_function(node_details: CurrentNodeDetails<Compound>) -> i32 {
     non_matches
 }
 
+#[allow(unused)]
 fn get_successors(compound: &Compound, formulas: &[Expression]) -> Vec<Successor<Compound>> {
     compound.0.iter().enumerate().flat_map(|(index, element)| {
         formulas.iter().filter(|formula| {
@@ -157,7 +269,7 @@ struct Compound(Vec<Element>);
 
 impl Debug for Compound {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.to_string())
+        write!(f, "{}:{}", self.to_string(), self.0.len())
     }
 }
 
@@ -338,7 +450,7 @@ struct Expression {
 
 impl From<&'static str> for Expression {
     fn from(s: &'static str) -> Self {
-        let mut parts = s.split("=>");
+        let mut parts = s.split(" => ");
         let from = Element(parts.next().unwrap().trim());
         let to: Compound = parts.next().unwrap().into();
         Self {
