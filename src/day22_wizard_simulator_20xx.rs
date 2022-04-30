@@ -1,6 +1,7 @@
 use log::*;
 use std::fmt::{Debug, Formatter};
 use std::str::FromStr;
+use enum_dispatch::enum_dispatch;
 
 pub(crate) fn run() {
     let _input = "Hit Points: 51
@@ -113,11 +114,11 @@ impl Game {
     fn is_finished(&self) -> bool {
         self.player.hit_points <= 0 || self.boss.hit_points <= 0
     }
-    fn get_winner(&self) -> Option<Box<dyn Fighter>> {
+    fn get_winner(&self) -> Option<FighterEnum> {
         if self.player.hit_points <= 0 {
-            Some(Box::new(self.boss.clone()))
+            Some(self.boss.clone().into())
         } else if self.boss.hit_points <= 0 {
-            Some(Box::new(self.player.clone()))
+            Some(self.player.clone().into())
         } else {
             None
         }
@@ -272,6 +273,7 @@ impl Player {
     }
 }
 
+#[enum_dispatch(FighterEnum)]
 trait Fighter {
     fn get_hit_points(&mut self) -> &mut i32;
     fn get_armor(&self) -> i32;
@@ -330,4 +332,10 @@ impl Fighter for Boss {
     fn fighter_type(&self) -> &'static str {
         "boss"
     }
+}
+
+#[enum_dispatch]
+enum FighterEnum {
+    Player,
+    Boss,
 }
