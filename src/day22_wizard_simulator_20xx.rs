@@ -1,3 +1,4 @@
+use log::*;
 use std::fmt::{Debug, Formatter};
 use std::str::FromStr;
 
@@ -37,10 +38,10 @@ impl Game {
     pub(crate) fn replay(spells: &[Spell], player: Player, boss: Boss, hard_mode: bool) {
         let mut game = Game::new(player, boss, hard_mode);
         for &spell in spells {
-            game.play_full_turn(spell, true);
+            game.play_full_turn(spell);
         }
         let winner = game.get_winner().unwrap();
-        println!("{} wins!", winner.fighter_type());
+        debug!("{} wins!", winner.fighter_type());
     }
     pub(crate) fn minimize_mana_used(&self) -> Vec<Spell> {
         let mut games: Vec<Self> = vec![self.clone()];
@@ -58,7 +59,7 @@ impl Game {
                 }
             }
             games = continued_games;
-            println!("{}/{} games finished", finished_games.len(), finished_games.len() + games.len());
+            debug!("{}/{} games finished", finished_games.len(), finished_games.len() + games.len());
         }
 
         let optimum = finished_games.into_iter()
@@ -73,40 +74,39 @@ impl Game {
         self.player.possible_spells()
             .map(|spell| {
                 let mut game = self.clone();
-                game.play_full_turn(spell, false);
+                game.play_full_turn(spell);
                 game
             })
     }
     fn get_total_spells_cost(&self) -> i32 {
         self.spells_used.iter().map(|spell| spell.get_cost()).sum()
     }
-    fn play_full_turn(&mut self, spell: Spell, print: bool) {
+    fn play_full_turn(&mut self, spell: Spell) {
         self.spells_used.push(spell);
-        let logger = Logger::new(print);
         //player
-        logger.log(|| "\n-- Player turn --");
-        logger.log(|| format!("- {:?}", self.player));
-        logger.log(|| format!("- {:?}", self.boss));
+        debug!("\n-- Player turn --");
+        debug!("- {:?}", self.player);
+        debug!("- {:?}", self.boss);
         if self.hard_mode {
-            if self.player.receive_damage(1, &logger) {
+            if self.player.receive_damage(1) {
                 return;
             }
         }
-        if self.player.start_turn(&mut self.boss, &logger) {
+        if self.player.start_turn(&mut self.boss) {
             return;
         }
-        if self.player.cast_spell(&mut self.boss, spell, &logger) {
+        if self.player.cast_spell(&mut self.boss, spell) {
             return;
         }
 
         //boss
-        logger.log(|| "\n-- Boss turn --");
-        logger.log(|| format!("- {:?}", self.player));
-        logger.log(|| format!("- {:?}", self.boss));
-        if self.player.start_turn(&mut self.boss, &logger) {
+        debug!("\n-- Boss turn --");
+        debug!("- {:?}", self.player);
+        debug!("- {:?}", self.boss);
+        if self.player.start_turn(&mut self.boss) {
             return;
         }
-        if self.player.receive_damage(self.boss.damage, &logger) {
+        if self.player.receive_damage(self.boss.damage) {
             return;
         }
     }
@@ -190,23 +190,23 @@ impl Player {
             recharge_turns: 0,
         }
     }
-    pub(crate) fn start_turn(&mut self, boss: &mut impl Fighter, logger: &Logger) -> bool {
+    pub(crate) fn start_turn(&mut self, boss: &mut impl Fighter) -> bool {
         self.shield_active = if self.shield_turns > 0 {
             self.shield_turns -= 1;
-            logger.log(|| format!("Shield's timer is now {}.", self.shield_turns));
+            debug!("Shield's timer is now {}.", self.shield_turns);
             true
         } else {
             false
         };
         if self.recharge_turns > 0 {
             self.recharge_turns -= 1;
-            logger.log(|| format!("Recharge provides 101 mana; its timer is now {}.", self.recharge_turns));
+            debug!("Recharge provides 101 mana; its timer is now {}.", self.recharge_turns);
             self.mana += 101;
         }
         if self.poison_turns > 0 {
             self.poison_turns -= 1;
-            logger.log(|| format!("Poison deals 3 damage; its timer is now {}.", self.poison_turns));
-            if boss.receive_damage(3, logger) {
+            debug!("Poison deals 3 damage; its timer is now {}.", self.poison_turns);
+            if boss.receive_damage(3) {
                 return true;
             }
         }
@@ -245,16 +245,16 @@ impl Player {
             true
         })
     }
-    pub(crate) fn cast_spell(&mut self, boss: &mut impl Fighter, spell: Spell, logger: &Logger) -> bool {
-        logger.log(|| format!("Player casts {:?}.", spell));
+    pub(crate) fn cast_spell(&mut self, boss: &mut impl Fighter, spell: Spell) -> bool {
+        debug!("Player casts {:?}.", spell);
         self.mana -= spell.get_cost();
         match spell {
             Spell::MagicMissile => {
-                boss.receive_damage(4, logger)
+                boss.receive_damage(4)
             }
             Spell::Drain => {
-                self.heal(2, logger);
-                boss.receive_damage(2, logger)
+                self.heal(2);
+                boss.receive_damage(2)
             }
             Spell::Shield => {
                 self.shield_turns = 6;
@@ -275,17 +275,17 @@ impl Player {
 trait Fighter {
     fn get_hit_points(&mut self) -> &mut i32;
     fn get_armor(&self) -> i32;
-    fn receive_damage(&mut self, mut damage: i32, logger: &Logger) -> bool {
+    fn receive_damage(&mut self, mut damage: i32) -> bool {
         let armor = self.get_armor();
         damage -= armor;
         damage = damage.max(1);
-        logger.log(|| format!("{} is inflicted {} damage.", self.fighter_type(), damage));
+        debug!("{} is inflicted {} damage.", self.fighter_type(), damage);
         let hp = self.get_hit_points();
         *hp -= damage;
         *hp <= 0
     }
-    fn heal(&mut self, hit_points: i32, logger: &Logger) {
-        logger.log(|| format!("{} is healed {} hp.", self.fighter_type(), hit_points));
+    fn heal(&mut self, hit_points: i32) {
+        debug!("{} is healed {} hp.", self.fighter_type(), hit_points);
         let hp = self.get_hit_points();
         *hp += hit_points;
     }
@@ -329,22 +329,5 @@ impl Fighter for Boss {
 
     fn fighter_type(&self) -> &'static str {
         "boss"
-    }
-}
-
-struct Logger {
-    log: bool,
-}
-
-impl Logger {
-    pub(crate) fn new(log: bool) -> Self {
-        Self {
-            log
-        }
-    }
-    pub(crate) fn log<S: Into<String> + std::fmt::Display, F: FnOnce() -> S>(&self, s: F) {
-        if self.log {
-            println!("{}", s())
-        }
     }
 }

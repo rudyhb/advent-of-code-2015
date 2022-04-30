@@ -27,6 +27,7 @@ mod day24_hangs_in_the_balance;
 mod day25_let_it_snow;
 
 fn main() {
+    env_logger::init();
     let _timer = Timer::start(|elapsed| println!("main took {} ms.", elapsed.as_millis()));
     let day: usize = if let Some(arg1) = std::env::args().nth(1) {
         arg1.parse().expect("argument should be an integer")

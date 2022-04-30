@@ -41,11 +41,8 @@ HOHOHO";
     let target = Compound::electron();
     let start = start;
 
-    let _options = AStarOptions::print_stats_and_values_every(10_000);
-    // let _options = AStarOptions::print_stats_and_values();
-
     println!("target molecule: {:?}", target);
-    // let result = a_star_search(start, &target, |compound| get_successors_rev(compound, &formulas), distance_function_rev, Some(&_options)).expect("no solution found");
+    // let result = a_star_search(start, &target, |compound| get_successors_rev(compound, &formulas), distance_function_rev, None).expect("no solution found");
 
     let result = cheat(start, &target, &formulas, 0);
 
