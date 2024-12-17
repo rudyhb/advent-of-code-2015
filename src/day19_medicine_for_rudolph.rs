@@ -98,7 +98,7 @@ fn cheat(start: Compound, target: &Compound, formulas: &[Expression], times: usi
     cheat(start, target, formulas, times + 1)
 }
 
-impl AStarNode for Compound {}
+impl Node for Compound {}
 
 static PRODUCTS: [&'static str; 40] = [
     "ThF",
@@ -167,7 +167,7 @@ fn try_get_successors_rev_optimized(compound: &Compound) -> Option<Compound> {
 }
 
 #[allow(unused)]
-fn get_successors_rev(compound: &Compound, formulas: &[Expression]) -> Vec<Successor<Compound>> {
+fn get_successors_rev(compound: &Compound, formulas: &[Expression]) -> Vec<Successor<Compound, i32>> {
     // if let Some(next) = try_get_successors_rev_optimized(compound) {
     //     return vec![Successor::new(next, 1)];
     // }
@@ -189,7 +189,7 @@ fn get_successors_rev(compound: &Compound, formulas: &[Expression]) -> Vec<Succe
 }
 
 #[allow(unused)]
-fn distance_function_rev(node_details: CurrentNodeDetails<Compound>) -> i32 {
+fn distance_function_rev(node_details: CurrentNodeDetails<Compound, i32>) -> i32 {
     let CurrentNodeDetails {
         current_node: left,
         target_node: _right,
@@ -221,7 +221,7 @@ fn distance_function_rev(node_details: CurrentNodeDetails<Compound>) -> i32 {
 }
 
 #[allow(unused)]
-fn distance_function(node_details: CurrentNodeDetails<Compound>) -> i32 {
+fn distance_function(node_details: CurrentNodeDetails<Compound, i32>) -> i32 {
     let CurrentNodeDetails {
         current_node: left,
         target_node: right,
@@ -245,7 +245,7 @@ fn distance_function(node_details: CurrentNodeDetails<Compound>) -> i32 {
 }
 
 #[allow(unused)]
-fn get_successors(compound: &Compound, formulas: &[Expression]) -> Vec<Successor<Compound>> {
+fn get_successors(compound: &Compound, formulas: &[Expression]) -> Vec<Successor<Compound, i32>> {
     compound.0.iter().enumerate().flat_map(|(index, element)| {
         formulas.iter().filter(|formula| {
             formula.from == *element
